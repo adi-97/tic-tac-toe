@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tic Tac Toe</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            background-color: #1e1e2f;
+            color: white;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        h1::before {
+            content: "🎯 ";
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            gap: 15px;
+            justify-content: center;
+            margin-top: 40px;
+        }
+
+        .cell {
+            width: 100px;
+            height: 100px;
+            background: #2d2f40;
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            color: white;
+            font-size: 2.5em;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .cell:hover {
+            background-color: #44445a;
+            transform: scale(1.05);
+        }
+
+        .controls {
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+
+        select,
+        button {
+            margin-left: 10px;
+            padding: 8px 12px;
+            font-size: 1em;
+            border: none;
+            border-radius: 6px;
+        }
+
+        select {
+            background-color: #f1f1f1;
+            color: #333;
+        }
+
+        button {
+            background-color: #61dafb;
+            color: black;
+            font-weight: bold;
+            margin-top: 15px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #21a1f1;
+        }
+
+        #result {
+            margin-top: 30px;
+            font-size: 1.8em;
+        }
+
+        #result:empty::before {
+            content: "🤖 Make your move!";
+            color: #ccc;
+            font-size: 1em;
+        }
+
+        #result:contains("Wins")::before {
+            content: "🏆 ";
+        }
+
+        #result:contains("Draw")::before {
+            content: "🤝 ";
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Tic Tac Toe</h1>
+
+    <div class="controls">
+        <label>Who plays first? 🧑‍💻🤖</label>
+        <select id="firstPlayer">
+            <option value="user">User 👤</option>
+            <option value="computer">Computer 🤖</option>
+        </select>
+
+        <label>Difficulty 🎚️</label>
+        <select id="difficulty">
+            <option value="easy">Easy 🍭</option>
+            <option value="medium" selected>Medium ⚙️</option>
+            <option value="hard">Hard 🧠</option>
+        </select>
+
+        <button onclick="startGame()">🎮 Start New Game</button>
+    </div>
+
+    <div class="board">
+        <div class="cell" onclick="makeMove(0)"></div>
+        <div class="cell" onclick="makeMove(1)"></div>
+        <div class="cell" onclick="makeMove(2)"></div>
+        <div class="cell" onclick="makeMove(3)"></div>
+        <div class="cell" onclick="makeMove(4)"></div>
+        <div class="cell" onclick="makeMove(5)"></div>
+        <div class="cell" onclick="makeMove(6)"></div>
+        <div class="cell" onclick="makeMove(7)"></div>
+        <div class="cell" onclick="makeMove(8)"></div>
+    </div>
+
+    <h2 id="result"></h2>
+
+    <!-- 🔊 Sounds -->
+    <audio id="bg-music" src="https://cdn.pixabay.com/audio/2022/03/15/audio_a6704e3b0d.mp3" loop></audio>
+    <audio id="click-sound" src="https://cdn.pixabay.com/audio/2021/08/04/audio_c4c9b0f61d.mp3"></audio>
+    <audio id="win-sound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_1c7e93eabe.mp3"></audio>
+
+    <script>
+        const bgMusic = document.getElementById("bg-music");
+        const clickSound = document.getElementById("click-sound");
+        const winSound = document.getElementById("win-sound");
+
+        window.onload = () => {
+            bgMusic.volume = 0.2;
+            bgMusic.play().catch(() => {
+                // Autoplay restrictions - wait for user interaction
+                document.body.addEventListener('click', () => bgMusic.play(), { once: true });
+            });
+        };
+
+        function startGame() {
+            let firstPlayer = document.getElementById("firstPlayer").value;
+            let difficulty = document.getElementById("difficulty").value;
+
+            fetch("/reset", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ computer_first: firstPlayer === "computer", difficulty: difficulty })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    drawBoard(data.board);
+                    document.getElementById("result").innerText = "";
+                });
+        }
+
+        function makeMove(position) {
+            clickSound.currentTime = 0;
+            clickSound.play();
+
+            fetch("/move", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ position: position })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    drawBoard(data.board);
+                    if (data.winner) {
+                        const resultText = data.winner === "Draw" ? "It's a Draw!" : `${data.winner} Wins!`;
+                        document.getElementById("result").innerText = resultText;
+
+                        if (data.winner !== "Draw") {
+                            winSound.play();
+                        }
+                    }
+                });
+        }
+
+        function drawBoard(board) {
+            let cells = document.querySelectorAll(".cell");
+            board.forEach((val, i) => {
+                cells[i].innerText = val === "X" ? "❌" : val === "O" ? "⭕" : "";
+            });
+        }
+    </script>
+</body>
+
+</html>
